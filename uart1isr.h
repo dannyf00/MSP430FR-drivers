@@ -1,16 +1,16 @@
 //uart0..3 on eUSCI_A0..3 for MSP430
 
-#ifndef UART1_H_
-#define UART1_H_
+#ifndef UART1ISR_H_
+#define UART1ISR_H_
 
 #include "gpio.h"								//we use gpio
 
 //hardware configuration
 //initialize uart pins
 //comment out if not used
-//TX/P2.5, RX/P2.6
-#define UART1_TX()			do {IO_OUT(PORT2, 1<<5); IO_AF2(PORT2, 1<<5);} while (0)
-//#define UART1_RX()			do {IO_IN (PORT2, 1<<6); IO_AF2(PORT2, 1<<6);} while (0)
+//TX/P2.0, RX/P2.1
+#define UART1_TX()			do {IO_OUT(PORT2, 1<<0); IO_AF2(PORT2, 1<<0);} while (0)
+//#define UART1_RX()			do {IO_IN (PORT2, 1<<1); IO_AF2(PORT2, 1<<1);} while (0)
 
 #define F_UART				(F_CPU)				//F_UART(F_BRCLK = F_CPU)
 //end hardware configuration

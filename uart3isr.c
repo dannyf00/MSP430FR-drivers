@@ -1,10 +1,31 @@
-#include "uart2.h"								//uart on eUSCI_A0..3 for MSP432
+#include "uart3isr.h"								//uart on eUSCI_A0..3 for MSP432
 
 //EUSCI_A
-#define eUSCIx				UART2
+#define eUSCIx				UART3
+
+//global variables
+static char *_UxTX_ptr;
+static unsigned char _UxTX_BUSY=0;		//0=ux transmission done, 1=ux transmission in process
+
+//uart0-isr: only TX is implemented
+#pragma vector=USCI_A3_VECTOR
+__interrupt void _ISRUSCI_A3 (void) {
+	//TX interrupt
+	//clear the flag
+	if (*_UxTX_ptr) {					//0 indicates the end of the string
+		//_UxTX_ptr;					//increment to the next char
+		eUSCIx->TXBUF = *_UxTX_ptr++;	//load up a char to be transmitted
+	} else {
+		//UxSTA.UTXEN = 0;				//turn off the transmission
+		eUSCIx->IE &=~UCTXIE;			//UxTXIE = 0;						//0->disable the interrupt
+		_UxTX_BUSY = 0;					//transmission done
+	}
+}
+
+
 
 //reset uart0/eusci_a0
-void uart2_init(uint32_t bps) {
+void uart3_init(uint32_t bps) {
 	uint16_t brx;								//used for baud rate calculation, corresponds to BRx, BRFx, BRSx in the datasheet
 	uint8_t brfx, brsx;
 	uint8_t OS16;
@@ -12,12 +33,12 @@ void uart2_init(uint32_t bps) {
 	uint32_t fracN;								//N - INT(N), x 10000
 
 	//configure the pins
-#if defined(UART2_TX)
-	UART2_TX();
+#if defined(UART3_TX)
+	UART3_TX();
 #endif
 	
-#if defined(UART2_RX)
-	UART2_RX();
+#if defined(UART3_RX)
+	UART3_RX();
 #endif
 	
 	// Configure USCI_A0 for UART mode
@@ -121,7 +142,7 @@ void uart2_init(uint32_t bps) {
 }
 
 //send a char
-void uart2_put(char ch) {
+void uart3_put(char ch) {
 	while ((eUSCIx->IFG & UCTXIFG) == 0) continue;//eUSCIx->IFG &=~UCTXIFG;			//0->TXBUF is not empty, 1->TXBUF is empty - most aggressive
 	//there appears to be a bug in the hardware for UCTXCPTIFG
 	//while ((eUSCIx->IFG & UCTXCPTIFG) == 0) continue; //eUSCIx->IFG &=~UCTXCPTIFG;	//wait for all bits to be shifted out and txbuf is empty
@@ -130,26 +151,36 @@ void uart2_put(char ch) {
 }
 
 //send a string
-void uart2_puts(char *str) {
-	while (*str) uart2_put(*str++);
+void uart3_puts(char *str) {
+	//while (*str) uart0_put(*str++);
+	if (*str) {							//if the string isn't empty to begin with
+		_UxTX_BUSY  = 1;					//transmission in progress
+		_UxTX_ptr=str;						//point to the string to be transmitted
+		eUSCIx->IFG &=~UCTXIFG;				//UxTXIF = 0;							//clear the flag
+		//UxSTA.UTXEN=1;					//enable transmission - always enabled
+		eUSCIx->IE |= UCTXIE;				//UxTXIE = 1;							//enable the interrupt
+		eUSCIx->TXBUF = *_UxTX_ptr++;				//load up the 1st char. advance to the next char
+	}
+	
 }
 
 //receive a char and clear the flag
-char uart2_get(void) {
+char uart3_get(void) {
 	//eUSCIx->IFG &=~(1ul<<0);					//clear the flag - done automatically by a read of RXBUF
 	//non-block -> does not test if data is available
 	return eUSCIx->RXBUF;
 }
 
 //test if uart tx is busy
-char uart2_busy(void) {
-	return (eUSCIx->IFG & UCTXIFG) == 0;			//UCTXIFG = 1 if TXBUF is empty - most aggressive
+char uart3_busy(void) {
+	return _UxTX_BUSY;
+	//return (eUSCIx->IFG & UCTXIFG) == 0;			//UCTXIFG = 1 if TXBUF is empty - most aggressive
 	//return (eUSCIx->IFG & UCTXCPTIFG) == 0;	//UCTXCPTIFG = 1 if all bits have been shifted out - there is a bug in hardware - do not use
 	//return (eUSCIx->STATW & UCBUSY) == 1;		//1->busy transmitting / receiving, 0->not active - most conservative
 }
 
 //test if uart rx is available
-char uart2_available(void) {
+char uart3_available(void) {
 	if (eUSCIx->IFG & UCRXIFG) return 1;			//UCRXIFG  is automatically reset by a read of RXBUF
 	else return 0;
 	//return (eUSCIx->IFG & (1ul<<0));

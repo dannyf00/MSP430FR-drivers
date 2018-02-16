@@ -1,7 +1,7 @@
 //uart0..3 on eUSCI_A0..3 for MSP430
 
-#ifndef UART0_H_
-#define UART0_H_
+#ifndef UART0ISR_H_
+#define UART0ISR_H_
 
 #include "gpio.h"								//we use gpio
 

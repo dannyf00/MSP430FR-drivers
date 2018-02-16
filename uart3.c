@@ -1,7 +1,7 @@
 #include "uart3.h"								//uart on eUSCI_A0..3 for MSP432
 
 //EUSCI_A
-#define uscix				UART3
+#define eUSCIx				UART3
 
 //reset uart0/eusci_a0
 void uart3_init(uint32_t bps) {
@@ -13,17 +13,17 @@ void uart3_init(uint32_t bps) {
 
 	//configure the pins
 #if defined(UART0_TX)
-	UART0_TX();
+	UART3_TX();
 #endif
 	
 #if defined(UART0_RX)
-	UART0_RX();
+	UART3_RX();
 #endif
 	
 	// Configure USCI_A0 for UART mode
-	uscix->CTLW0 = (1<<0);						//EUSCI_A_CTLW0_SWRST;			//UCA0CTLW0 = UCSWRST;                      // Put eUSCI in reset
-	//uscix->CTLW0|= EUSCI_A_CTLW0_SSEL__SMCLK;	//UCA0CTLW0 |= UCSSEL__SMCLK;               // CLK = SMCLK
-	uscix->CTLW0 = 	(0<<15) |					//0->parity disabled, 1->parity enabled
+	eUSCIx->CTLW0 = (1<<0);						//EUSCI_A_CTLW0_SWRST;			//UCA0CTLW0 = UCSWRST;                      // Put eUSCI in reset
+	//eUSCIx->CTLW0|= EUSCI_A_CTLW0_SSEL__SMCLK;	//UCA0CTLW0 |= UCSSEL__SMCLK;               // CLK = SMCLK
+	eUSCIx->CTLW0 = 	(0<<15) |					//0->parity disabled, 1->parity enabled
 					(0<<14) |					//0->odd parity, 1->even parity
 					(0<<13) |					//0->lsb first, 1->msb first
 					(0<<12) |					//0->8-bit data, 1->7-bit data
@@ -96,37 +96,37 @@ void uart3_init(uint32_t bps) {
 		else                                  brsx = 0xfe;
 #endif
 
-	uscix->BRW=brx;
+	eUSCIx->BRW=brx;
 	//UCA0BR0 = 52;                             // 8000000/16/9600
 	//UCA0BR1 = 0x00;
 	//UCA0MCTLW |= UCOS16 | UCBRF_1;
-	uscix->MCTLW = 	((brsx & 0xff) << 8) |		//ucbrsx: 2nd modulation stage select
+	eUSCIx->MCTLW = 	((brsx & 0xff) << 8) |		//ucbrsx: 2nd modulation stage select
 					((brfx &  0x0f) << 4) |		//first modulation stage select
 					(OS16<<0) |					//0->oversampling disabled, 1->oversampling enabled
 					0x00;
 	//the above doesn't work
 	//following works
-	//uscix->BRW=0x0001;						//works at 3Mhz
-	//uscix->MCTLW = 0x00a1;
+	//eUSCIx->BRW=0x0001;						//works at 3Mhz
+	//eUSCIx->MCTLW = 0x00a1;
 
-	uscix->CTLW1 = 	(3<< 0) |					//0->deglitch = 2ns, 1->deglitch = 50ns, 2->deglitch = 100ns, 3->deglitch = 200ns
+	eUSCIx->CTLW1 = 	(3<< 0) |					//0->deglitch = 2ns, 1->deglitch = 50ns, 2->deglitch = 100ns, 3->deglitch = 200ns
 					0x00;
 
 	//UCA0IE |= UCRXIE;                         // Enable USCI_A0 RX interrupt
-	uscix->IFG = 0x00;							//clear all flag
-	uscix->IE  = 0x00;							//disable all interrupts
+	eUSCIx->IFG = 0x00;							//clear all flag
+	eUSCIx->IE  = 0x00;							//disable all interrupts
 
 	//UCA0CTLW0 &= ~UCSWRST;                    // Initialize eUSCI
-	uscix->CTLW0&=~(1<<0);						//0->release reset, 1->enable reset
+	eUSCIx->CTLW0&=~(1<<0);						//0->release reset, 1->enable reset
 }
 
 //send a char
 void uart3_put(char ch) {
-	while ((uscix->IFG & UCTXIFG) == 0) continue;//uscix->IFG &=~UCTXIFG;			//0->TXBUF is not empty, 1->TXBUF is empty - most aggressive
+	while ((eUSCIx->IFG & UCTXIFG) == 0) continue;//eUSCIx->IFG &=~UCTXIFG;			//0->TXBUF is not empty, 1->TXBUF is empty - most aggressive
 	//there appears to be a bug in the hardware for UCTXCPTIFG
-	//while ((uscix->IFG & UCTXCPTIFG) == 0) continue; //uscix->IFG &=~UCTXCPTIFG;	//wait for all bits to be shifted out and txbuf is empty
-	//while ((uscix->STATW & UCBUSY) == 1) continue;	//wait for transmission / receiving to be inactive - most conservative
-	uscix->TXBUF = ch;							//load up the char
+	//while ((eUSCIx->IFG & UCTXCPTIFG) == 0) continue; //eUSCIx->IFG &=~UCTXCPTIFG;	//wait for all bits to be shifted out and txbuf is empty
+	//while ((eUSCIx->STATW & UCBUSY) == 1) continue;	//wait for transmission / receiving to be inactive - most conservative
+	eUSCIx->TXBUF = ch;							//load up the char
 }
 
 //send a string
@@ -136,22 +136,22 @@ void uart3_puts(char *str) {
 
 //receive a char and clear the flag
 char uart3_get(void) {
-	//uscix->IFG &=~(1ul<<0);					//clear the flag - done automatically by a read of RXBUF
+	//eUSCIx->IFG &=~(1ul<<0);					//clear the flag - done automatically by a read of RXBUF
 	//non-block -> does not test if data is available
-	return uscix->RXBUF;
+	return eUSCIx->RXBUF;
 }
 
 //test if uart tx is busy
 char uart3_busy(void) {
-	return (uscix->IFG & UCTXIFG) == 0;			//UCTXIFG = 1 if TXBUF is empty - most aggressive
-	//return (uscix->IFG & UCTXCPTIFG) == 0;	//UCTXCPTIFG = 1 if all bits have been shifted out - there is a bug in hardware - do not use
-	//return (uscix->STATW & UCBUSY) == 1;		//1->busy transmitting / receiving, 0->not active - most conservative
+	return (eUSCIx->IFG & UCTXIFG) == 0;			//UCTXIFG = 1 if TXBUF is empty - most aggressive
+	//return (eUSCIx->IFG & UCTXCPTIFG) == 0;	//UCTXCPTIFG = 1 if all bits have been shifted out - there is a bug in hardware - do not use
+	//return (eUSCIx->STATW & UCBUSY) == 1;		//1->busy transmitting / receiving, 0->not active - most conservative
 }
 
 //test if uart rx is available
 char uart3_available(void) {
-	if (uscix->IFG & UCRXIFG) return 1;			//UCRXIFG  is automatically reset by a read of RXBUF
+	if (eUSCIx->IFG & UCRXIFG) return 1;			//UCRXIFG  is automatically reset by a read of RXBUF
 	else return 0;
-	//return (uscix->IFG & (1ul<<0));
+	//return (eUSCIx->IFG & (1ul<<0));
 }
 
